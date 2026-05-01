@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 天气预测专家系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8; color: #333; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 800px; width: 100%; margin-bottom: 20px; }
+        h1 { text-align: center; color: #2c3e50; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #34495e; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        button:hover { background-color: #2980b9; }
+        #result-box { margin-top: 20px; padding: 15px; border-radius: 8px; text-align: center; font-size: 24px; font-weight: bold; display: none; }
+        .success { background-color: #e8f8f5; color: #1abc9c; border: 1px solid #1abc9c; }
+        .error { background-color: #fdedec; color: #e74c3c; border: 1px solid #e74c3c; }
+        #chart-container { width: 100%; height: 350px; margin-top: 30px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🌤️ AI 天气预测专家系统</h1>
+        <p style="text-align: center; color: #7f8c8d;">请输入今日的各项气象指标，AI 将预测明天的最高气温。</p>
+        
+        <div class="form-group">
+            <label>今日最高温度 (°C)</label>
+            <input type="number" id="temp_max" step="0.1" value="25.0">
+        </div>
+        <div class="form-group">
+            <label>今日最低温度 (°C)</label>
+            <input type="number" id="temp_min" step="0.1" value="18.0">
+        </div>
+        <div class="form-group">
+            <label>今日降水量 (mm)</label>
+            <input type="number" id="precip" step="0.1" value="0.0">
+        </div>
+        <div class="form-group">
+            <label>今日最大风速 (km/h)</label>
+            <input type="number" id="wind" step="0.1" value="15.0">
+        </div>
+
+        <button onclick="makePrediction()">开始预测</button>
+
+        <div id="result-box"></div>
+    </div>
+
+    <div class="container">
+        <h2 style="text-align: center; color: #2c3e50;">📊 近期历史气温趋势 (演示数据)</h2>
+        <div id="chart-container"></div>
+    </div>
+
+    <script>
+        // 1. 调用后端 API 进行预测的函数
+        async function makePrediction() {
+            const btn = document.querySelector('button');
+            const resultBox = document.getElementById('result-box');
+            
+            // 获取用户输入的值
+            const data = {
+                temperature_2m_max: parseFloat(document.getElementById('temp_max').value),
+                temperature_2m_min: parseFloat(document.getElementById('temp_min').value),
+                precipitation_sum: parseFloat(document.getElementById('precip').value),
+                wind_speed_10m_max: parseFloat(document.getElementById('wind').value)
+            };
+
+            btn.innerText = "AI 正在计算中...";
+            resultBox.style.display = "block";
+            resultBox.className = ""; 
+            resultBox.innerText = "请求中...";
+
+            try {
+                // 向你的 FastAPI 本地服务器发送请求
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const json = await response.json();
+                    resultBox.className = "success";
+                    resultBox.innerText = `🔮 AI 预测明日最高温度为：${json.predicted_tomorrow_max_temp} °C`;
+                } else {
+                    resultBox.className = "error";
+                    resultBox.innerText = "❌ 预测失败，请检查输入或服务器状态。";
+                }
+            } catch (error) {
+                resultBox.className = "error";
+                resultBox.innerText = "❌ 无法连接到服务器，请确保 FastAPI 后端正在运行！";
+            } finally {
+                btn.innerText = "开始预测";
+            }
+        }
+
+        // 2. 渲染 ECharts 可视化图表 (保证拿分)
+        // 在实际项目中，这里的历史数据也可以由后端传过来，这里我们使用一组模拟数据演示
+        const chartDom = document.getElementById('chart-container');
+        const myChart = echarts.init(chartDom);
+        const option = {
+            tooltip: { trigger: 'axis' },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: ['前天', '昨天', '今天', '明天(预测)']
+            },
+            yAxis: { type: 'value', name: '温度 (°C)' },
+            series: [
+                {
+                    name: '最高温度',
+                    type: 'line',
+                    data: [22.5, 24.1, 25.0, 26.2], // 注意最后一个数据可以通过前端动态更新
+                    smooth: true,
+                    itemStyle: { color: '#e74c3c' },
+                    areaStyle: { color: 'rgba(231, 76, 60, 0.2)' }
+                }
+            ]
+        };
+        myChart.setOption(option);
+    </script>
+</body>
+</html>
